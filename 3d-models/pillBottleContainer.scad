@@ -1,8 +1,8 @@
 module pillBox() {
 	difference() {
-		cube([28,66,16], centered=true);
-		translate([3,3,3]) {
-			cube([22,60,20], centered=true);
+		cube([25,88,13], centered=true);
+		translate([1.5,1.5,1.5]) {
+			cube([22,85,20], centered=true);
 		}
 	}
 }
