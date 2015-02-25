@@ -6,15 +6,15 @@
 
 
 #define sensitivity 50  //the sensitivity required to acknowledge a "move" event.  Will be replaced with accelerometer
-#define sampleSpeed 10 //delay between samples.  ADXL362 samples at 100hz.
+#define sampleSpeed 100 //delay between samples.  ADXL362 samples at 100hz.
 
 //Define some running median things
-RunningMedian xLong = RunningMedian(1000); //median over 10 seconds (at 100hz)
-RunningMedian xShort = RunningMedian(100); //median over 1 second (at 100hz)
-RunningMedian yLong = RunningMedian(1000);
-RunningMedian yShort = RunningMedian(100);
-RunningMedian zLong = RunningMedian(1000);
-RunningMedian zShort = RunningMedian(100);
+RunningMedian xLong = RunningMedian(100); //median over 10 seconds (at 10hz)
+RunningMedian xShort = RunningMedian(10); //median over 1 second (at 10hz)
+RunningMedian yLong = RunningMedian(100);
+RunningMedian yShort = RunningMedian(10);
+RunningMedian zLong = RunningMedian(100);
+RunningMedian zShort = RunningMedian(10);
 
 //lastBump is the time (millis()) when the last "touch event" happened
 long lastBump = millis();
@@ -33,7 +33,9 @@ unsigned char len = 0;
 int writeBuffer_size = 140;
 char writeBuffer[140];
 
-
+//Array for movements
+int movements[100];
+int moveIndex = 0;
 
 void setup(){
   ble_set_name("PillBottle");
@@ -41,7 +43,6 @@ void setup(){
   Serial.begin(9600);
   xl.begin(10);                   // Setup SPI protocol, issue device soft reset
   xl.beginMeasure();              // Switch ADXL362 to measure mode  	
-  Serial.println("Start Demo: Simple Read");
 }
 
 void bleTick() {
@@ -50,14 +51,14 @@ void bleTick() {
 }
 
 void clearBuffer() {
-  for (int i=0; i<=10; i++) {
+  for (int i=0; i<writeBuffer_size; i++) {
     writeBuffer[i] = '\0';   
   }
 }
 
 void displayMessage() {
   if ( ble_connected() ) {
-    for (int i=0; i<=writeBuffer_size; i++) {
+    for (int i=0; i<writeBuffer_size; i++) {
       if (writeBuffer[i] != '\0') {
         ble_write(writeBuffer[i]);
         Serial.println(writeBuffer[i]);
@@ -70,6 +71,27 @@ void displayMessage() {
 void setMessage(String message) {
   clearBuffer();
   message.toCharArray(writeBuffer,140); 
+}
+
+void bleDump() {
+  setMessage(String(millis() / 1000)); //The current time on the arduino
+  displayMessage();
+  
+  for (int i=0; i<100; i++) {
+    if (movements[i] != '\0') {
+      setMessage(String(movements[i]));
+      displayMessage();
+    }
+  } 
+}
+
+void readBle() {
+  if (ble_available()) {
+    if (ble_read() == 1) {
+      Serial.println("You asked for data");
+      bleDump(); 
+    }
+  }  
 }
 
 void loop(){
@@ -90,14 +112,11 @@ void loop(){
   
   if ((change > sensitivity) && ((millis() - lastBump) > 3000)) {
     lastBump = millis();
-    bleTick();
+    movements[moveIndex] = (millis() / 1000);
+    moveIndex++;
     Serial.println("Move!");
   }
+  readBle();
   ble_do_events();
-  Serial.println(XValue);
-  if ((millis() % 10000) == 0) {
-    setMessage("Hello!");
-    displayMessage();
-  }
-  delay(sampleSpeed);
+  delay(10);
 }
